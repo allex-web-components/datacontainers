@@ -117,6 +117,28 @@ function createHtmlVisualizedAvailableChosenCombo (lib, applib) {
           handler: this.changed.fire.bind(this.changed, 'chosen')
         },
         {
+          triggers: 'element.'+myname+'.'+availaccnts+'!doubleClicked',
+          references: [
+            'element.'+myname+'.'+availaccnts,
+            'element.'+myname+'.'+chosenaccnts
+          ].join(','),
+          handler: function (avlacc, chsnacc, dblclckval) {
+            avlacc.removeItems([dblclckval]);
+            chsnacc.addItems([dblclckval]);
+          }
+        },
+        {
+          triggers: 'element.'+myname+'.'+chosenaccnts+'!doubleClicked',
+          references: [
+            'element.'+myname+'.'+availaccnts,
+            'element.'+myname+'.'+chosenaccnts
+          ].join(','),
+          handler: function (avlacc, chsnacc, dblclckval) {
+            avlacc.addItems([dblclckval]);
+            chsnacc.removeItems([dblclckval]);
+          }
+        },
+        {
           triggers: 'element.'+myname+'.'+chooseone+'!clicked',
           references: [
             'element.'+myname+'.'+availaccnts,

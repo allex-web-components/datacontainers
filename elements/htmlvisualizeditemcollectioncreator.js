@@ -6,14 +6,21 @@ function createHtmlVisualizedItemCollection (lib, applib) {
   function HtmlVisualizedItemCollectionElement (id, options) {
     ItemCollectionElement.call(this, id, options);
     this.htmlHelperMap = new lib.Map();
+    this.doubleClicked = this.createBufferableHookCollection();
     this.onItemClickeder = this.onItemClicked.bind(this);
+    this.onItemDoubleClickeder = this.onItemDoubleClicked.bind(this);
     if (options.selectionmode=='multi') {
       this.value = [];
     }
   }
   lib.inherit(HtmlVisualizedItemCollectionElement, ItemCollectionElement);
   HtmlVisualizedItemCollectionElement.prototype.__cleanUp = function () {
+    this.onItemDoubleClickeder = null;
     this.onItemClickeder = null;
+    if (this.doubleClicked) {
+      this.doubleClicked.destroy();
+    }
+    this.doubleClicked = null;
     if (this.htmlHelperMap) {
       this.htmlHelperMap.destroy();
     }
@@ -53,6 +60,7 @@ function createHtmlVisualizedItemCollection (lib, applib) {
     nextkey = nextitem ? this.keyFromItem(nextitem)+'' : null;
     nextvalnvis = nextkey == null ? null : this.htmlHelperMap.get(nextkey);
     visitem.on('click', this.onItemClickeder);
+    visitem.on('dblclick', this.onItemDoubleClickeder);
     if (!(nextvalnvis && nextvalnvis.visual)) {
       this.$element.append(visitem);
       return;
@@ -63,7 +71,7 @@ function createHtmlVisualizedItemCollection (lib, applib) {
     var removeditem = ItemCollectionElement.prototype.performItemRemoval.call(this, itemindex),
       key = this.keyFromItem(removeditem)+'',
       rmvalnvis = this.htmlHelperMap.remove(key);
-    console.log('removed', key);
+    //console.log('removed', key);
     if (rmvalnvis) {
       rmvalnvis.visual.remove();
       this.removeItemFromValue(rmvalnvis.value);
@@ -99,21 +107,37 @@ function createHtmlVisualizedItemCollection (lib, applib) {
       return;
     }
     this.addItemToValue(valnvis.value);
-    /*
-    if (lib.isArray(currval)) {
-      if (wasclickedactive) {
-        valindex = currval.indexOf(valnvis.value);
-        if (valindex>=0) {
-          currval.splice(valindex, 1);
-          this.set('value', currval.slice());
-        }
-      } else {
-        this.set('value', currval.concat([valnvis.value]));
-      }
+  };
+  HtmlVisualizedItemCollectionElement.prototype.onItemDoubleClicked = function (ev) {
+    //console.log('doubleclicked',ev);
+    var selectionmode, jq, wasclickedactive, key, valnvis, currval, valindex;
+    //console.log('clicked', ev);
+    selectionmode = this.getConfigVal('selectionmode');
+    if (!selectionmode || selectionmode=='none') {
       return;
     }
-    this.set('value', wasclickedactive ? null : valnvis.value);
-    */
+    jq = jQuery(ev.currentTarget);
+    wasclickedactive = jq.hasClass('active');
+    jq.removeClass('active');
+    if (selectionmode=='single') {
+      if (wasclickedactive) {
+        this.deselectCurrentlyActive();
+      }
+      currval = null;
+    } else {
+      currval = this.get('value');
+    }
+    key = jq.attr('itemcollectionkey');
+    //console.log('key', key);
+    valnvis = this.htmlHelperMap.get(key);
+    if (!valnvis) {
+      return;
+    }
+    if (wasclickedactive) {
+      this.removeItemFromValue(valnvis.value);
+      //return;
+    }
+    this.doubleClicked.fire(valnvis.value);
   };
   HtmlVisualizedItemCollectionElement.prototype.addItemToValue = function (item) {
     var currval = this.get('value'), valindex;
