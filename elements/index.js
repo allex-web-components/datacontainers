@@ -5,6 +5,8 @@ function createELements (execlib) {
 
   require('./itemcollectioncreator')(lib, applib);
   require('./htmlvisualizeditemcollectioncreator')(lib, applib);
+  require('./htmlvisualizedstringlistcreator')(lib, applib);
+  require('./htmlvisualizedhash2stringlistcreator')(lib, applib);
   require('./htmlvisualizedavailablechosencombo')(lib, applib);
 }
 module.exports = createELements;

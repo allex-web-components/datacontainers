@@ -32,7 +32,7 @@ function createHtmlVisualizedItemCollection (lib, applib) {
     this.htmlHelperMap.purge();
     ItemCollectionElement.prototype.emptyAll.call(this);
   };
-  HtmlVisualizedItemCollectionElement.prototype.visualizationFromItem = function (item, nextitem) {
+  HtmlVisualizedItemCollectionElement.prototype.visualizationFromItem = function (item) {
     var key = this.keyFromItem(item)+'';
     var p;
     var itemopts = this.getConfigVal('item') || {}, itemoptattrs;
@@ -165,9 +165,11 @@ function createHtmlVisualizedItemCollection (lib, applib) {
   HtmlVisualizedItemCollectionElement.prototype.keyFromItem = function (item) {
     throw new lib.Error('NOT_IMPLEMENTED', 'keyFromItem has to be implemented by '+this.constructor.name);
   };
-
   HtmlVisualizedItemCollectionElement.prototype.textFromVisualizationItem = function (item) {
     throw new lib.Error('NOT_IMPLEMENTED', 'textFromVisualizationItem has to be implemented by '+this.constructor.name);
+  };
+  HtmlVisualizedItemCollectionElement.prototype.itemFromKey = function (key) {
+    return this.htmlHelperMap.get(key);
   };
   //abstraction end
 

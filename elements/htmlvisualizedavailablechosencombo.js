@@ -65,9 +65,19 @@ function createHtmlVisualizedAvailableChosenCombo (lib, applib) {
       }, options.widgets.unchooseall)
     ];
     WebElement.call(this, id, options);
+    this.needsChosenToBeSet = this.createBufferableHookCollection();
+    this.needsChosenToBeReset = this.createBufferableHookCollection();
   }
   lib.inherit(HtmlVisualizedAvailableChosenElement, WebElement);
   HtmlVisualizedAvailableChosenElement.prototype.__cleanUp = function () {
+    if(this.needsChosenToBeReset) {
+       this.needsChosenToBeReset.destroy();
+    }
+    this.needsChosenToBeReset = null;
+    if(this.needsChosenToBeSet) {
+       this.needsChosenToBeSet.destroy();
+    }
+    this.needsChosenToBeSet = null;
     WebElement.prototype.__cleanUp.call(this);
   };
   HtmlVisualizedAvailableChosenElement.prototype.get_available = function () {
@@ -83,8 +93,14 @@ function createHtmlVisualizedAvailableChosenCombo (lib, applib) {
     return w ? w.get('data') : null;
   };
   HtmlVisualizedAvailableChosenElement.prototype.set_chosen = function (data) {
+    /* niet goed
     var w = this.getWidget('chosen');
     return w ? w.set('data', data) : false;
+    */
+    this.needsChosenToBeSet.fire(data);
+  };
+  HtmlVisualizedAvailableChosenElement.prototype.resetChosen = function () {
+    this.needsChosenToBeReset.fire(true);
   };
 
   HtmlVisualizedAvailableChosenElement.prototype.getWidget = function (name) {
@@ -175,7 +191,10 @@ function createHtmlVisualizedAvailableChosenCombo (lib, applib) {
           }
         },
         {
-          triggers: 'element.'+myname+'.'+unchooseall+'!clicked',
+          triggers: [
+            'element.'+myname+'.'+unchooseall+'!clicked',
+            'element.'+myname+'!needsChosenToBeReset',
+          ],
           references: [
             'element.'+myname+'.'+availaccnts,
             'element.'+myname+'.'+chosenaccnts
@@ -183,9 +202,20 @@ function createHtmlVisualizedAvailableChosenCombo (lib, applib) {
           handler: function(avlacc, chsnacc) {
             var all = chsnacc.get('data');
             chsnacc.set('data', null);
-            avlacc.addItems(all);
+            avlacc.addItems(lib.isArray(all) ? all : []);
           }
         },
+        {
+          triggers: 'element.'+myname+'!needsChosenToBeSet',
+          references: [
+            'element.'+myname+'.'+availaccnts,
+            'element.'+myname+'.'+chosenaccnts
+          ].join(','),
+          handler: function(avlacc, chsnacc, newchosen) {
+            avlacc.removeItems(newchosen);
+            chsnacc.addItems(newchosen);
+          }
+        }
       ],
       links: [
         {

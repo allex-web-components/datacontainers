@@ -3,16 +3,32 @@ function createDataContainer (lib, applib) {
 
   var JobOnDestroyable = lib.qlib.JobOnDestroyable;
 
-  function ElementsVisualiserJob (elem, defer) {
+  function ElementJob (elem, defer) {
     JobOnDestroyable.call(this, elem, defer);
+  }
+  lib.inherit(ElementJob, JobOnDestroyable);
+  ElementJob.prototype.go = function () {
+    var ok = this.okToGo();
+    if (!ok.ok) {
+      return ok.val;
+    }
+    lib.runNext(this.jobProcMain.bind(this));
+    return ok.val;
+  };
+  ElementJob.prototype.jobProcMain = function () {
+    throw new lib.Error('NOT_IMPLEMENTED', this.constructor.name+' has to implement jobProcMain');
+  };
+
+  function ElementsVisualiserJob (elem, defer) {
+    ElementJob.call(this, elem, defer);
     this.originalData = elem.get('data');
     this.currentIndex = elem.elementCountForStaticAdd-1;
   }
-  lib.inherit(ElementsVisualiserJob, JobOnDestroyable);
+  lib.inherit(ElementsVisualiserJob, ElementJob);
   ElementsVisualiserJob.prototype.destroy = function () {
     this.currentIndex = null;
     this.originalData = null;
-    JobOnDestroyable.prototype.destroy.call(this);
+    ElementJob.prototype.destroy.call(this);
   };
   ElementsVisualiserJob.prototype.go = function () {
     var ok = this.okToGo();
@@ -41,6 +57,88 @@ function createDataContainer (lib, applib) {
     );
     lib.runNext(this.visualizeOne.bind(this));
   };
+  ElementsVisualiserJob.prototype.jobProcMain = ElementsVisualiserJob.prototype.visualizeOne;
+
+  function ItemsAdderJob (elem, items, defer) {
+    ElementJob.call(this, elem, defer);
+    this.items = items;
+  }
+  lib.inherit(ItemsAdderJob, ElementJob);
+  ItemsAdderJob.prototype.destroy = function () {
+    this.items = null;
+    ElementJob.prototype.destroy.call(this);
+  };
+  ItemsAdderJob.prototype.jobProcMain = function () {
+    if (lib.isArray(this.items)) {
+      this.items.forEach(this.destroyable.addItem.bind(this.destroyable));
+      this.destroyable.reSetData();
+      this.resolve(this.items.length);
+      return;
+    }
+    this.destroyable.addItem(items);
+    this.destroyable.reSetData();
+    this.resolve(1);
+    /*
+    this.data = this.data || [];
+    if (lib.isArray(items)) {
+      Array.prototype.push.apply(this.get('data'), items);
+      this.reSetData();
+      items.forEach(this.visualizeItem.bind(this));
+      return;
+    }
+    this.get('data').push(items);
+    this.visualizeItem(items);
+    this.reSetData();
+    */
+  };
+
+  function ItemsRemoverJob (element, items, defer) {
+    ElementJob.call(this, element, defer);
+    this.items = items;
+  }
+  lib.inherit(ItemsRemoverJob, ElementJob);
+  ItemsRemoverJob.prototype.destroy = function () {
+    this.items = null;
+    ElementJob.prototype.destroy.call(this);
+  };
+  ItemsRemoverJob.prototype.jobProcMain = function () {
+    if (lib.isArray(this.items)) {
+      this.items.forEach(this.destroyable.removeItem.bind(this.destroyable));
+      this.destroyable.reSetData();
+      this.resolve(this.items.length);
+      return;
+    }
+    this.destroyable.removeItem(items);
+    this.destroyable.reSetData();
+    this.resolve(1);
+  };
+
+  function DataVisualizerJob (element, data, defer) {
+    ElementJob.call(this, element, defer);
+    this.data = data;
+  }
+  lib.inherit(DataVisualizerJob, ElementJob);
+  DataVisualizerJob.prototype.destroy = function () {
+    this.data = null;
+    ElementJob.prototype.destroy.call(this);
+  };
+  DataVisualizerJob.prototype.jobProcMain = function () {
+    var i;
+    this.destroyable.emptyAll();
+    if (!lib.isArray(this.data)) {
+      this.resolve(0);
+      return;
+    }
+    for (i=0; i<this.data.length; i++) {
+      if (i>=this.destroyable.elementCountForStaticAdd) {
+        break;
+      }
+      this.destroyable.visualizeItem(this.data[i], null);
+    }
+    lib.qlib.promise2defer((new ElementsVisualiserJob(this.destroyable)).go(), this);
+  };
+
+
 
   var WebElement = applib.getElementType('WebElement');
 
@@ -63,7 +161,7 @@ function createDataContainer (lib, applib) {
   ItemCollectionElement.prototype.set_data = function (data) {
     this.data = lib.isArray(data) ? data.sort(this.compareItems.bind(this)) : data;
     if (!this.internalChange) {
-    this.visualizeData();
+      this.visualizeData();
     }
     return true;
   };
@@ -75,18 +173,7 @@ function createDataContainer (lib, applib) {
     return true;
   };
   ItemCollectionElement.prototype.visualizeData = function () {
-    var i;
-    this.emptyAll();
-    if (!lib.isArray(this.data)) {
-      return;
-    }
-    for (i=0; i<this.data.length; i++) {
-      if (i>=this.elementCountForStaticAdd) {
-        break;
-      }
-      this.visualizeItem(this.data[i], null);
-    }
-    this.jobs.run('.', new ElementsVisualiserJob(this));
+    this.jobs.run('.', new DataVisualizerJob(this, this.get('data')));
   };
   ItemCollectionElement.prototype.visualizeItem = function (item, nextitem) {
     var visitem = this.visualizationFromItem(item, nextitem);
@@ -94,13 +181,7 @@ function createDataContainer (lib, applib) {
   };
 
   ItemCollectionElement.prototype.removeItems = function (items) {
-    if (lib.isArray(items)) {
-      items.forEach(this.removeItem.bind(this));
-      this.reSetData();
-      return;
-    }
-    this.removeItem(items);
-    this.reSetData();
+    this.jobs.run('.', new ItemsRemoverJob(this, items));
   };
   ItemCollectionElement.prototype.removeItem = function (item) {
     var itemindex = this.findDataItemIndexByItem(item);
@@ -113,25 +194,7 @@ function createDataContainer (lib, applib) {
   };
 
   ItemCollectionElement.prototype.addItems = function (items) {
-    if (lib.isArray(items)) {
-      items.forEach(this.addItem.bind(this));
-      this.reSetData();
-      return;
-    }
-    this.addItem(items);
-    this.reSetData();
-    /*
-    this.data = this.data || [];
-    if (lib.isArray(items)) {
-      Array.prototype.push.apply(this.get('data'), items);
-      this.reSetData();
-      items.forEach(this.visualizeItem.bind(this));
-      return;
-    }
-    this.get('data').push(items);
-    this.visualizeItem(items);
-    this.reSetData();
-    */
+    this.jobs.run('.', new ItemsAdderJob(this, items));
   };
   ItemCollectionElement.prototype.addItem = function (item) {
     var placingindex = this.findNewDataItemPlacingIndex(item);
@@ -184,13 +247,16 @@ function createDataContainer (lib, applib) {
   ItemCollectionElement.prototype.findNewDataItemPlacingIndex = function (item) {
     var data = this.get('data'), i;
     if (!lib.isArray(data)) {
+      console.log(this.id, 'no data, so 0');
       return 0;
     }
     for (i=0; i<data.length; i++) {
       if (this.compareItems(data[i], item)>0) {
+        console.log(this.id, data[i], item, 'found, so', i);
         return i;
       }
     }
+    console.log(this.id, 'NOT found, so', i);
     return i;
   };
   //overloadables end
