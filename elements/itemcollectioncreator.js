@@ -138,7 +138,11 @@ function createDataContainer (lib, applib) {
     lib.qlib.promise2defer((new ElementsVisualiserJob(this.destroyable)).go(), this);
   };
 
-
+  function sortcheck (thingy) {
+    if (lib.isArray(thingy)) {
+      thingy.sort(this.compareItems.bind(this));
+    }
+  }
 
   var WebElement = applib.getElementType('WebElement');
 
@@ -159,7 +163,8 @@ function createDataContainer (lib, applib) {
     return this.data;
   };
   ItemCollectionElement.prototype.set_data = function (data) {
-    this.data = lib.isArray(data) ? data.sort(this.compareItems.bind(this)) : data;
+    sortcheck.call(this, data);
+    this.data = data;
     if (!this.internalChange) {
       this.visualizeData();
     }
@@ -177,7 +182,9 @@ function createDataContainer (lib, applib) {
   };
   ItemCollectionElement.prototype.visualizeItem = function (item, nextitem) {
     var visitem = this.visualizationFromItem(item, nextitem);
-    this.addVisualizationToSelf(visitem, nextitem);
+    if (visitem) {
+      this.addVisualizationToSelf(visitem, nextitem);
+    }
   };
 
   ItemCollectionElement.prototype.removeItems = function (items) {
@@ -194,6 +201,7 @@ function createDataContainer (lib, applib) {
   };
 
   ItemCollectionElement.prototype.addItems = function (items) {
+    sortcheck.call(this, items);
     this.jobs.run('.', new ItemsAdderJob(this, items));
   };
   ItemCollectionElement.prototype.addItem = function (item) {
@@ -226,8 +234,14 @@ function createDataContainer (lib, applib) {
     this.internalChange = false;
   };
   //overloadables
-  ItemCollectionElement.prototype.compareItems = function (item1, item2) {
-    return 1;
+  ItemCollectionElement.prototype.compareItems = function (a, b) {
+    if (a<b) {
+      return -1;
+    }
+    if (a>b) {
+      return 1;
+    }
+    return 0;
   };
   ItemCollectionElement.prototype.emptyAll = function () {
 

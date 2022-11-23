@@ -266,17 +266,96 @@ function createHtmlVisualizedHash2StringList (lib, applib) {
   };
   HtmlVisualizedHash2StringListElement.prototype.compareItems = function (a,b) {
     var valuepath = this.getConfigVal('valuepath');
-    return (lib.isString(valuepath) && valuepath.length>0) ? a[valuepath] - b[valuepath] : a - b;
+    return (lib.isString(valuepath) && valuepath.length>0)
+    ?
+    HtmlVisualizedItemCollectionElement.prototype.compareItems.call(this, a[valuepath], b[valuepath])
+    :
+    HtmlVisualizedItemCollectionElement.prototype.compareItems.call(this, a, b)
   };
   HtmlVisualizedHash2StringListElement.prototype.textFromVisualizationItem = function (item) {
     var titlepath = this.getConfigVal('titlepath');
     return (lib.isString(titlepath) && titlepath.length>0) ? item[titlepath] : item;
   };
+  function comparer (a, b, numeric) {
+    if (numeric) {
+      return a-b;
+    }
+    
+  }
+
 
   applib.registerElementType('HtmlVisualizedHash2StringList', HtmlVisualizedHash2StringListElement);
 }
 module.exports = createHtmlVisualizedHash2StringList;
 },{}],3:[function(require,module,exports){
+function createHtmlVisualizedHash2StringListWithGrouping (lib, applib) {
+  'use strict';
+
+  var HtmlVisualizedHash2StringListElement = applib.getElementType('HtmlVisualizedHash2StringList');
+
+  function HtmlVisualizedHash2StringListWithGroupingElement (id, options) {
+    HtmlVisualizedHash2StringListElement.call(this, id, options);
+  }
+  lib.inherit(HtmlVisualizedHash2StringListWithGroupingElement, HtmlVisualizedHash2StringListElement);
+
+  //showcase for how to do things here
+  HtmlVisualizedHash2StringListWithGroupingElement.prototype.visualizationUnit = function () {
+    return jQuery('<li class="listwithgrouping"><span class="itemcaption"></span><span class="itemgroup"></span></li>');
+  };
+  HtmlVisualizedHash2StringListWithGroupingElement.prototype.annotateVisualizationUnit = function (valuevisual, item) {
+    var visitem;
+    HtmlVisualizedHash2StringListElement.prototype.annotateVisualizationUnit.call(this, valuevisual, item);
+    visitem = valuevisual.visual;
+    if (lib.isArray(valuevisual.value.group)) {
+      valuevisual.value.group.forEach(this.handleGroupItemVisualization.bind(this, visitem));
+      visitem = null;
+      return;
+    }
+    this.handleDuplicate(null, valuevisual, item);
+  };
+  HtmlVisualizedHash2StringListWithGroupingElement.prototype.setCaptionOnVisualization = function (visunit, caption) {
+    visunit.find('.itemcaption').html(caption);
+  };
+  HtmlVisualizedHash2StringListWithGroupingElement.prototype.handleDuplicate = function (key, valuevisualfound, item) {
+    if (!lib.isArray(valuevisualfound.value.group)) {
+      valuevisualfound.value.group = [];
+    }
+    valuevisualfound.value.group.push(item);
+    this.handleGroupItemVisualization(valuevisualfound.visual, item);
+  };
+  //endof showcase
+
+  //overloadables
+  HtmlVisualizedHash2StringListWithGroupingElement.prototype.handleGroupItemVisualization = function (visitem, item) {
+    var ig = visitem.find('.itemgroup');
+    ig.html(parseInt(ig.html())+1);
+  }
+  //endof overloadables
+
+  HtmlVisualizedHash2StringListWithGroupingElement.prototype.groupedValues = function (item) {
+    var groupfields = this.getConfigVal('groupfields'), ret;
+    if (lib.isString(groupfields)) {
+      return item[groupfields];
+    }
+    if (lib.isArray(groupfields)) {
+      ret = groupfields.reduce(grouper.bind(null, item), []);
+      item = null;
+      return ret;
+    }
+    return item;
+  };
+
+  function grouper (item, res, gf) {
+    if (lib.isString(gf)) {
+      res.push(item[gf]);
+    }
+    return res;
+  }
+
+  applib.registerElementType('HtmlVisualizedHash2StringListWithGrouping', HtmlVisualizedHash2StringListWithGroupingElement);
+}
+module.exports = createHtmlVisualizedHash2StringListWithGrouping;
+},{}],4:[function(require,module,exports){
 function createHtmlVisualizedItemCollection (lib, applib) {
   'use strict';
 
@@ -312,27 +391,19 @@ function createHtmlVisualizedItemCollection (lib, applib) {
     ItemCollectionElement.prototype.emptyAll.call(this);
   };
   HtmlVisualizedItemCollectionElement.prototype.visualizationFromItem = function (item) {
-    var key = this.keyFromItem(item)+'';
-    var p;
-    var itemopts = this.getConfigVal('item') || {}, itemoptattrs;
-    var li = jQuery('<li>');
-
-    this.htmlHelperMap.add(key, {value: item, visual: li});
-    li.attr('itemcollectionkey', key);
-    itemoptattrs = itemopts.attrs;
-    if (itemoptattrs) {
-      for (p in itemoptattrs) {
-        if (!itemoptattrs.hasOwnProperty(p)) {
-          continue;
-        }
-        li.attr(p, itemoptattrs[p]);
-      }
+    var key = this.keyFromItem(item)+'', valuevisual, duplicate;
+    var visunit;
+    duplicate = this.htmlHelperMap.get(key);
+    if (duplicate) {
+      this.handleDuplicate(key, duplicate, item);
+      return;
     }
-    if (itemopts.class) {
-      li.addClass(itemopts.class);
-    }
-    li.html(this.textFromVisualizationItem(item));
-    return li;
+    visunit = this.visualizationUnit();
+    visunit.attr('itemcollectionkey', key);
+    valuevisual = {value: item, visual: visunit};
+    this.htmlHelperMap.add(key, valuevisual);
+    this.annotateVisualizationUnit(valuevisual, item);
+    return visunit;
   };
   HtmlVisualizedItemCollectionElement.prototype.addVisualizationToSelf = function (visitem, nextitem) {
     var nextkey, nextvalnvis;
@@ -440,6 +511,34 @@ function createHtmlVisualizedItemCollection (lib, applib) {
       this.set('value', null);
     }
   };
+  //overridables
+  HtmlVisualizedItemCollectionElement.prototype.visualizationUnit = function () {
+    return jQuery('<li>');
+  };
+  HtmlVisualizedItemCollectionElement.prototype.annotateVisualizationUnit = function (valuevisual, item) {
+    var p, visunit = valuevisual.visual;
+    var itemopts = this.getConfigVal('item') || {}, itemoptattrs;
+    itemoptattrs = itemopts.attrs;
+    if (itemoptattrs) {
+      for (p in itemoptattrs) {
+        if (!itemoptattrs.hasOwnProperty(p)) {
+          continue;
+        }
+        visunit.attr(p, itemoptattrs[p]);
+      }
+    }
+    if (itemopts.class) {
+      visunit.addClass(itemopts.class);
+    }
+    this.setCaptionOnVisualization(visunit, this.textFromVisualizationItem(item));
+  };
+  HtmlVisualizedItemCollectionElement.prototype.setCaptionOnVisualization = function (visunit, caption) {
+    visunit.html(caption);
+  };
+  HtmlVisualizedItemCollectionElement.prototype.handleDuplicate = function (key, valuevisualfound, item) {
+    console.warn('Duplicate key found', key, 'on', item);
+  };
+  //overridables end
   //abstraction
   HtmlVisualizedItemCollectionElement.prototype.keyFromItem = function (item) {
     throw new lib.Error('NOT_IMPLEMENTED', 'keyFromItem has to be implemented by '+this.constructor.name);
@@ -463,7 +562,7 @@ function createHtmlVisualizedItemCollection (lib, applib) {
 
 }
 module.exports = createHtmlVisualizedItemCollection;
-},{}],4:[function(require,module,exports){
+},{}],5:[function(require,module,exports){
 function createHtmlVisualizedStringList (lib, applib) {
   'use strict';
 
@@ -476,9 +575,6 @@ function createHtmlVisualizedStringList (lib, applib) {
   HtmlVisualizedStringListElement.prototype.keyFromItem = function (item) {
     return item;
   };
-  HtmlVisualizedStringListElement.prototype.compareItems = function (a,b) {
-    return a > b;
-  };
   HtmlVisualizedStringListElement.prototype.textFromVisualizationItem = function (item) {
     return item;
   };
@@ -486,7 +582,7 @@ function createHtmlVisualizedStringList (lib, applib) {
   applib.registerElementType('HtmlVisualizedStringList', HtmlVisualizedStringListElement);
 }
 module.exports = createHtmlVisualizedStringList;
-},{}],5:[function(require,module,exports){
+},{}],6:[function(require,module,exports){
 function createELements (execlib) {
   var lib = execlib.lib,
   lR = execlib.execSuite.libRegistry,
@@ -496,10 +592,11 @@ function createELements (execlib) {
   require('./htmlvisualizeditemcollectioncreator')(lib, applib);
   require('./htmlvisualizedstringlistcreator')(lib, applib);
   require('./htmlvisualizedhash2stringlistcreator')(lib, applib);
+  require('./htmlvisualizedhash2stringlistwithgroupingcreator')(lib, applib);
   require('./htmlvisualizedavailablechosencombo')(lib, applib);
 }
 module.exports = createELements;
-},{"./htmlvisualizedavailablechosencombo":1,"./htmlvisualizedhash2stringlistcreator":2,"./htmlvisualizeditemcollectioncreator":3,"./htmlvisualizedstringlistcreator":4,"./itemcollectioncreator":6}],6:[function(require,module,exports){
+},{"./htmlvisualizedavailablechosencombo":1,"./htmlvisualizedhash2stringlistcreator":2,"./htmlvisualizedhash2stringlistwithgroupingcreator":3,"./htmlvisualizeditemcollectioncreator":4,"./htmlvisualizedstringlistcreator":5,"./itemcollectioncreator":7}],7:[function(require,module,exports){
 function createDataContainer (lib, applib) {
   'use strict';
 
@@ -640,7 +737,11 @@ function createDataContainer (lib, applib) {
     lib.qlib.promise2defer((new ElementsVisualiserJob(this.destroyable)).go(), this);
   };
 
-
+  function sortcheck (thingy) {
+    if (lib.isArray(thingy)) {
+      thingy.sort(this.compareItems.bind(this));
+    }
+  }
 
   var WebElement = applib.getElementType('WebElement');
 
@@ -661,7 +762,8 @@ function createDataContainer (lib, applib) {
     return this.data;
   };
   ItemCollectionElement.prototype.set_data = function (data) {
-    this.data = lib.isArray(data) ? data.sort(this.compareItems.bind(this)) : data;
+    sortcheck.call(this, data);
+    this.data = data;
     if (!this.internalChange) {
       this.visualizeData();
     }
@@ -679,7 +781,9 @@ function createDataContainer (lib, applib) {
   };
   ItemCollectionElement.prototype.visualizeItem = function (item, nextitem) {
     var visitem = this.visualizationFromItem(item, nextitem);
-    this.addVisualizationToSelf(visitem, nextitem);
+    if (visitem) {
+      this.addVisualizationToSelf(visitem, nextitem);
+    }
   };
 
   ItemCollectionElement.prototype.removeItems = function (items) {
@@ -696,6 +800,7 @@ function createDataContainer (lib, applib) {
   };
 
   ItemCollectionElement.prototype.addItems = function (items) {
+    sortcheck.call(this, items);
     this.jobs.run('.', new ItemsAdderJob(this, items));
   };
   ItemCollectionElement.prototype.addItem = function (item) {
@@ -728,8 +833,14 @@ function createDataContainer (lib, applib) {
     this.internalChange = false;
   };
   //overloadables
-  ItemCollectionElement.prototype.compareItems = function (item1, item2) {
-    return 1;
+  ItemCollectionElement.prototype.compareItems = function (a, b) {
+    if (a<b) {
+      return -1;
+    }
+    if (a>b) {
+      return 1;
+    }
+    return 0;
   };
   ItemCollectionElement.prototype.emptyAll = function () {
 
@@ -777,7 +888,7 @@ function createDataContainer (lib, applib) {
   applib.registerElementType('ItemCollection', ItemCollectionElement);
 }
 module.exports = createDataContainer;
-},{}],7:[function(require,module,exports){
+},{}],8:[function(require,module,exports){
 (function (execlib) {
   'use strict';
 
@@ -785,4 +896,4 @@ module.exports = createDataContainer;
 
 })(ALLEX);
 
-},{"./elements":5}]},{},[7]);
+},{"./elements":6}]},{},[8]);

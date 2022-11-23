@@ -10,9 +10,6 @@ function createHtmlVisualizedStringList (lib, applib) {
   HtmlVisualizedStringListElement.prototype.keyFromItem = function (item) {
     return item;
   };
-  HtmlVisualizedStringListElement.prototype.compareItems = function (a,b) {
-    return a > b;
-  };
   HtmlVisualizedStringListElement.prototype.textFromVisualizationItem = function (item) {
     return item;
   };

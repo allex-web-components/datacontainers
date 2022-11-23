@@ -33,27 +33,19 @@ function createHtmlVisualizedItemCollection (lib, applib) {
     ItemCollectionElement.prototype.emptyAll.call(this);
   };
   HtmlVisualizedItemCollectionElement.prototype.visualizationFromItem = function (item) {
-    var key = this.keyFromItem(item)+'';
-    var p;
-    var itemopts = this.getConfigVal('item') || {}, itemoptattrs;
-    var li = jQuery('<li>');
-
-    this.htmlHelperMap.add(key, {value: item, visual: li});
-    li.attr('itemcollectionkey', key);
-    itemoptattrs = itemopts.attrs;
-    if (itemoptattrs) {
-      for (p in itemoptattrs) {
-        if (!itemoptattrs.hasOwnProperty(p)) {
-          continue;
-        }
-        li.attr(p, itemoptattrs[p]);
-      }
+    var key = this.keyFromItem(item)+'', valuevisual, duplicate;
+    var visunit;
+    duplicate = this.htmlHelperMap.get(key);
+    if (duplicate) {
+      this.handleDuplicate(key, duplicate, item);
+      return;
     }
-    if (itemopts.class) {
-      li.addClass(itemopts.class);
-    }
-    li.html(this.textFromVisualizationItem(item));
-    return li;
+    visunit = this.visualizationUnit();
+    visunit.attr('itemcollectionkey', key);
+    valuevisual = {value: item, visual: visunit};
+    this.htmlHelperMap.add(key, valuevisual);
+    this.annotateVisualizationUnit(valuevisual, item);
+    return visunit;
   };
   HtmlVisualizedItemCollectionElement.prototype.addVisualizationToSelf = function (visitem, nextitem) {
     var nextkey, nextvalnvis;
@@ -161,6 +153,34 @@ function createHtmlVisualizedItemCollection (lib, applib) {
       this.set('value', null);
     }
   };
+  //overridables
+  HtmlVisualizedItemCollectionElement.prototype.visualizationUnit = function () {
+    return jQuery('<li>');
+  };
+  HtmlVisualizedItemCollectionElement.prototype.annotateVisualizationUnit = function (valuevisual, item) {
+    var p, visunit = valuevisual.visual;
+    var itemopts = this.getConfigVal('item') || {}, itemoptattrs;
+    itemoptattrs = itemopts.attrs;
+    if (itemoptattrs) {
+      for (p in itemoptattrs) {
+        if (!itemoptattrs.hasOwnProperty(p)) {
+          continue;
+        }
+        visunit.attr(p, itemoptattrs[p]);
+      }
+    }
+    if (itemopts.class) {
+      visunit.addClass(itemopts.class);
+    }
+    this.setCaptionOnVisualization(visunit, this.textFromVisualizationItem(item));
+  };
+  HtmlVisualizedItemCollectionElement.prototype.setCaptionOnVisualization = function (visunit, caption) {
+    visunit.html(caption);
+  };
+  HtmlVisualizedItemCollectionElement.prototype.handleDuplicate = function (key, valuevisualfound, item) {
+    console.warn('Duplicate key found', key, 'on', item);
+  };
+  //overridables end
   //abstraction
   HtmlVisualizedItemCollectionElement.prototype.keyFromItem = function (item) {
     throw new lib.Error('NOT_IMPLEMENTED', 'keyFromItem has to be implemented by '+this.constructor.name);
