@@ -38,8 +38,26 @@ function createHtmlVisualizedAvailableChosenCombo (lib, applib) {
         type: 'HtmlVisualizedItemCollection'
       }, options.widgets.available),
       lib.extend({
+        type: 'SearchInputElement'
+      }, options.widgets.availablesearch),
+      lib.extend({
+        type: 'WebElement'
+      }, options.widgets.availabletotalcount),
+      lib.extend({
+        type: 'WebElement'
+      }, options.widgets.availablefilteredcount),
+      lib.extend({
         type: 'HtmlVisualizedItemCollection'
       }, options.widgets.chosen),
+      lib.extend({
+        type: 'SearchInputElement'
+      }, options.widgets.chosensearch),
+      lib.extend({
+        type: 'WebElement'
+      }, options.widgets.chosentotalcount),
+      lib.extend({
+        type: 'WebElement'
+      }, options.widgets.chosenfilteredcount),
       lib.extend({
         type: 'ClickableElement',
         options: {
@@ -89,6 +107,10 @@ function createHtmlVisualizedAvailableChosenCombo (lib, applib) {
     var w = this.getWidget('available');
     return w ? w.set('data', data) : false;
   };
+  HtmlVisualizedAvailableChosenElement.prototype.get_visibleavailable = function () {
+    var w = this.getWidget('available');
+    return w ? w.get('visible') : null;
+  };
   HtmlVisualizedAvailableChosenElement.prototype.get_chosen = function () {
     var w = this.getWidget('chosen');
     return w ? w.get('data') : null;
@@ -99,6 +121,10 @@ function createHtmlVisualizedAvailableChosenCombo (lib, applib) {
     return w ? w.set('data', data) : false;
     */
     this.needsChosenToBeSet.fire(data);
+  };
+  HtmlVisualizedAvailableChosenElement.prototype.get_visiblechosen = function () {
+    var w = this.getWidget('chosen');
+    return w ? w.get('visible') : null;
   };
   HtmlVisualizedAvailableChosenElement.prototype.resetChosen = function () {
     this.needsChosenToBeReset.fire(true);
@@ -113,11 +139,19 @@ function createHtmlVisualizedAvailableChosenCombo (lib, applib) {
   }
 
   HtmlVisualizedAvailableChosenElement.prototype.staticEnvironmentDescriptor = function (myname) {
-    var widgets, availaccnts, availaccntsselmode, chosenaccnts, chosenaccntsselmode, chooseone, chooseall, unchooseone, unchooseall;
+    var widgets, availaccnts, availsearch, availtotalcount, availfilteredcount, availaccntsselmode,
+      chosenaccnts, chosensearch, chosentotalcount, chosenfilteredcount, chosenaccntsselmode, chooseone, chooseall,
+      unchooseone, unchooseall;
     widgets = this.getConfigVal('widgets');
     availaccnts = widgets.available.name;
+    availsearch = widgets.availablesearch.name;
+    availtotalcount = widgets.availabletotalcount.name;
+    availfilteredcount = widgets.availablefilteredcount.name;
     availaccntsselmode = widgets.available.options.selectmode;
     chosenaccnts = widgets.chosen.name;
+    chosensearch = widgets.chosensearch.name;
+    chosentotalcount = widgets.chosentotalcount.name;
+    chosenfilteredcount = widgets.chosenfilteredcount.name;
     chosenaccntsselmode = widgets.chosen.options.selectmode;
     chooseone = widgets.chooseone.name;
     chooseall = widgets.chooseall.name;
@@ -125,6 +159,22 @@ function createHtmlVisualizedAvailableChosenCombo (lib, applib) {
     unchooseall = widgets.unchooseall.name;
     return {
       logic: [
+        {
+          triggers: [
+            'element.'+myname+'.'+availaccnts+':totalcount',
+            'element.'+myname+'.'+availaccnts+':filteredcount',
+          ].join(','),
+          references: 'element.'+myname+'.'+availfilteredcount,
+          handler: filteredController
+        },
+        {
+          triggers: [
+            'element.'+myname+'.'+chosenaccnts+':totalcount',
+            'element.'+myname+'.'+chosenaccnts+':filteredcount',
+          ].join(','),
+          references: 'element.'+myname+'.'+chosenfilteredcount,
+          handler: filteredController
+        },
         {
           triggers: 'element.'+myname+'.'+availaccnts+':data',
           handler: this.changed.fire.bind(this.changed, 'available')
@@ -170,13 +220,14 @@ function createHtmlVisualizedAvailableChosenCombo (lib, applib) {
         {
           triggers: 'element.'+myname+'.'+chooseall+'!clicked',
           references: [
+            'element.'+myname,
             'element.'+myname+'.'+availaccnts,
             'element.'+myname+'.'+chosenaccnts
           ].join(','),
-          handler: function(avlacc, chsnacc) {
-            var all = avlacc.get('data');
-            avlacc.set('data', null);
-            chsnacc.addItems(all);
+          handler: function(me, avlacc, chsnacc) {
+            var allvisible = me.get('visibleavailable');
+            avlacc.removeItems(allvisible);
+            chsnacc.addItems(allvisible);
           }
         },
         {
@@ -192,18 +243,31 @@ function createHtmlVisualizedAvailableChosenCombo (lib, applib) {
           }
         },
         {
+          triggers: 'element.'+myname+'!needsChosenToBeReset',
+          references: [
+            'element.'+myname+'.'+availsearch,
+            'element.'+myname+'.'+chosensearch
+          ].join(','),
+          handler: function (avsrch, chsrch) {
+            avsrch.set('value', '');
+            chsrch.set('value', '');
+          }
+        },
+        {
           triggers: [
             'element.'+myname+'.'+unchooseall+'!clicked',
             'element.'+myname+'!needsChosenToBeReset',
           ],
           references: [
+            'element.'+myname,
             'element.'+myname+'.'+availaccnts,
             'element.'+myname+'.'+chosenaccnts
           ].join(','),
-          handler: function(avlacc, chsnacc) {
-            var all = chsnacc.get('data');
-            chsnacc.set('data', null);
-            avlacc.addItems(lib.isArray(all) ? all : []);
+          handler: function(me, avlacc, chsnacc) {
+            var allvisible = me.get('visiblechosen');
+            allvisible = lib.isArray(allvisible) ? allvisible : [];
+            chsnacc.removeItems(allvisible);
+            avlacc.addItems(allvisible);
           }
         },
         {
@@ -219,6 +283,48 @@ function createHtmlVisualizedAvailableChosenCombo (lib, applib) {
         }
       ],
       links: [
+        {
+          source: 'element.'+myname+'.'+availaccnts+':totalcount',
+          target: 'element.'+myname+'.'+availtotalcount+':actual',
+          filter: function (num) {return num>0;}
+        },
+        {
+          source: 'element.'+myname+'.'+availaccnts+':totalcount',
+          target: 'element.'+myname+'.'+availtotalcount+':text',
+          filter: function (num) {return 'Total: '+num;}
+        },
+        {
+          source: 'element.'+myname+'.'+chosenaccnts+':totalcount',
+          target: 'element.'+myname+'.'+chosentotalcount+':actual',
+          filter: function (num) {return num>0;}
+        },
+        {
+          source: 'element.'+myname+'.'+chosenaccnts+':totalcount',
+          target: 'element.'+myname+'.'+chosentotalcount+':text',
+          filter: function (num) {return 'Total: '+num;}
+        },
+        {
+          source: 'element.'+myname+'.'+availsearch+':value',
+          target: 'element.'+myname+'.'+availaccnts+':filter'
+        },
+        {
+          source: 'element.'+myname+'.'+chosensearch+':value',
+          target: 'element.'+myname+'.'+chosenaccnts+':filter'
+        },
+        {
+          source: 'element.'+myname+'.'+availaccnts+':data',
+          target: 'element.'+myname+'.'+availsearch+':actual',
+          filter: function (data) {
+            return lib.isArray(data) && data.length > 10;
+          }
+        },
+        {
+          source: 'element.'+myname+'.'+chosenaccnts+':data',
+          target: 'element.'+myname+'.'+chosensearch+':actual',
+          filter: function (data) {
+            return lib.isArray(data) && data.length > 10;
+          }
+        },
         {
           source: 'element.'+myname+'.'+availaccnts+':value',
           target: 'element.'+myname+'.'+chooseone+':enabled',
@@ -240,6 +346,14 @@ function createHtmlVisualizedAvailableChosenCombo (lib, applib) {
     };
   };
 
+  function filteredController (el, totcnt, fltcnt) {
+    if (totcnt == fltcnt) {
+      el.set('actual', false);
+      return;
+    }
+    el.set('text', 'Filtered: '+fltcnt);
+    el.set('actual', true);
+  }
   function multiSelectValue2Enabled (value) {
     return value && value.length>0;
   }
@@ -276,13 +390,10 @@ function createHtmlVisualizedHash2StringList (lib, applib) {
     var titlepath = this.getConfigVal('titlepath');
     return (lib.isString(titlepath) && titlepath.length>0) ? item[titlepath] : item;
   };
-  function comparer (a, b, numeric) {
-    if (numeric) {
-      return a-b;
-    }
-    
-  }
-
+  HtmlVisualizedHash2StringListElement.prototype.valueFromVisualizationItem = function (item) {
+    var valuepath = this.getConfigVal('valuepath');
+    return (lib.isString(valuepath) && valuepath.length>0) ? item[valuepath] : item;
+  };
 
   applib.registerElementType('HtmlVisualizedHash2StringList', HtmlVisualizedHash2StringListElement);
 }
@@ -302,16 +413,16 @@ function createHtmlVisualizedHash2StringListWithGrouping (lib, applib) {
   HtmlVisualizedHash2StringListWithGroupingElement.prototype.visualizationUnit = function () {
     return jQuery('<li class="listwithgrouping"><span class="itemcaption"></span><span class="itemgroup"></span></li>');
   };
-  HtmlVisualizedHash2StringListWithGroupingElement.prototype.annotateVisualizationUnit = function (valuevisual, item) {
+  HtmlVisualizedHash2StringListWithGroupingElement.prototype.annotateVisualizationUnit = function (valuevisual) {
     var visitem;
-    HtmlVisualizedHash2StringListElement.prototype.annotateVisualizationUnit.call(this, valuevisual, item);
+    HtmlVisualizedHash2StringListElement.prototype.annotateVisualizationUnit.call(this, valuevisual);
     visitem = valuevisual.visual;
     if (lib.isArray(valuevisual.value.group)) {
       valuevisual.value.group.forEach(this.handleGroupItemVisualization.bind(this, visitem));
       visitem = null;
       return;
     }
-    this.handleDuplicate(null, valuevisual, item);
+    this.handleDuplicate(null, valuevisual, valuevisual.value);
   };
   HtmlVisualizedHash2StringListWithGroupingElement.prototype.setCaptionOnVisualization = function (visunit, caption) {
     visunit.find('.itemcaption').html(caption);
@@ -363,7 +474,6 @@ function createHtmlVisualizedItemCollection (lib, applib) {
 
   function HtmlVisualizedItemCollectionElement (id, options) {
     ItemCollectionElement.call(this, id, options);
-    this.htmlHelperMap = new lib.Map();
     this.doubleClicked = this.createBufferableHookCollection();
     this.onItemClickeder = this.onItemClicked.bind(this);
     this.onItemDoubleClickeder = this.onItemDoubleClicked.bind(this);
@@ -379,36 +489,22 @@ function createHtmlVisualizedItemCollection (lib, applib) {
       this.doubleClicked.destroy();
     }
     this.doubleClicked = null;
-    if (this.htmlHelperMap) {
-      this.htmlHelperMap.destroy();
-    }
-    this.htmlHelperMap = null;
     ItemCollectionElement.prototype.__cleanUp.call(this);
   };
-  HtmlVisualizedItemCollectionElement.prototype.emptyAll = function () {
+  HtmlVisualizedItemCollectionElement.prototype.purgeAllVisualization = function () {
     this.$element.empty();
-    this.htmlHelperMap.purge();
-    ItemCollectionElement.prototype.emptyAll.call(this);
+    return ItemCollectionElement.prototype.purgeAllVisualization.call(this);
   };
-  HtmlVisualizedItemCollectionElement.prototype.visualizationFromItem = function (item) {
-    var key = this.keyFromItem(item)+'', valuevisual, duplicate;
+  HtmlVisualizedItemCollectionElement.prototype.visualizationFromItem = function (key, item) {
     var visunit;
-    duplicate = this.htmlHelperMap.get(key);
-    if (duplicate) {
-      this.handleDuplicate(key, duplicate, item);
-      return;
-    }
     visunit = this.visualizationUnit();
     visunit.attr('itemcollectionkey', key);
-    valuevisual = {value: item, visual: visunit};
-    this.htmlHelperMap.add(key, valuevisual);
-    this.annotateVisualizationUnit(valuevisual, item);
     return visunit;
   };
   HtmlVisualizedItemCollectionElement.prototype.addVisualizationToSelf = function (visitem, nextitem) {
     var nextkey, nextvalnvis;
     nextkey = nextitem ? this.keyFromItem(nextitem)+'' : null;
-    nextvalnvis = nextkey == null ? null : this.htmlHelperMap.get(nextkey);
+    nextvalnvis = nextkey == null ? null : this.itemHelperMap.get(nextkey);
     visitem.on('click', this.onItemClickeder);
     visitem.on('dblclick', this.onItemDoubleClickeder);
     if (!(nextvalnvis && nextvalnvis.visual)) {
@@ -420,7 +516,7 @@ function createHtmlVisualizedItemCollection (lib, applib) {
   HtmlVisualizedItemCollectionElement.prototype.performItemRemoval = function (itemindex) {
     var removeditem = ItemCollectionElement.prototype.performItemRemoval.call(this, itemindex),
       key = this.keyFromItem(removeditem)+'',
-      rmvalnvis = this.htmlHelperMap.remove(key);
+      rmvalnvis = this.itemHelperMap.remove(key);
     //console.log('removed', key);
     if (rmvalnvis) {
       rmvalnvis.visual.remove();
@@ -448,7 +544,7 @@ function createHtmlVisualizedItemCollection (lib, applib) {
     }
     key = jq.attr('itemcollectionkey');
     //console.log('key', key);
-    valnvis = this.htmlHelperMap.get(key);
+    valnvis = this.itemHelperMap.get(key);
     if (!valnvis) {
       return;
     }
@@ -479,7 +575,7 @@ function createHtmlVisualizedItemCollection (lib, applib) {
     }
     key = jq.attr('itemcollectionkey');
     //console.log('key', key);
-    valnvis = this.htmlHelperMap.get(key);
+    valnvis = this.itemHelperMap.get(key);
     if (!valnvis) {
       return;
     }
@@ -511,12 +607,24 @@ function createHtmlVisualizedItemCollection (lib, applib) {
       this.set('value', null);
     }
   };
+  HtmlVisualizedItemCollectionElement.prototype.doesVisualPassTheFilter = function (visitem) {
+    var text = this.get('filter') || '';
+    var fail = text.length > 0 && (visitem.text().toLowerCase().indexOf(text) < 0);
+    visitem[fail ? 'hide' : 'show']();
+    return !fail;
+  };
+  /*
+  HtmlVisualizedItemCollectionElement.prototype.doTheFiltering = function () {    
+    filterCollection.call(this);
+    return ItemCollectionElement.prototype.doTheFiltering.call(this);
+  };
+  */
   //overridables
   HtmlVisualizedItemCollectionElement.prototype.visualizationUnit = function () {
     return jQuery('<li>');
   };
-  HtmlVisualizedItemCollectionElement.prototype.annotateVisualizationUnit = function (valuevisual, item) {
-    var p, visunit = valuevisual.visual;
+  HtmlVisualizedItemCollectionElement.prototype.annotateVisualizationUnit = function (valuevisual) {
+    var p, visunit = valuevisual.visual, item = valuevisual.value;
     var itemopts = this.getConfigVal('item') || {}, itemoptattrs;
     itemoptattrs = itemopts.attrs;
     if (itemoptattrs) {
@@ -536,7 +644,7 @@ function createHtmlVisualizedItemCollection (lib, applib) {
     visunit.html(caption);
   };
   HtmlVisualizedItemCollectionElement.prototype.handleDuplicate = function (key, valuevisualfound, item) {
-    console.warn('Duplicate key found', key, 'on', item);
+    console.warn(this.id, 'Duplicate key found', key, 'on', item);
   };
   //overridables end
   //abstraction
@@ -546,13 +654,16 @@ function createHtmlVisualizedItemCollection (lib, applib) {
   HtmlVisualizedItemCollectionElement.prototype.textFromVisualizationItem = function (item) {
     throw new lib.Error('NOT_IMPLEMENTED', 'textFromVisualizationItem has to be implemented by '+this.constructor.name);
   };
+  HtmlVisualizedItemCollectionElement.prototype.valueFromVisualizationItem = function (item) {
+    throw new lib.Error('NOT_IMPLEMENTED', this.constructor.name+' has to implement valueFromVisualizationItem');
+  };
   HtmlVisualizedItemCollectionElement.prototype.itemFromKey = function (key) {
-    return this.htmlHelperMap.get(key);
+    return this.itemHelperMap.get(key);
   };
   //abstraction end
 
   HtmlVisualizedItemCollectionElement.prototype.deselectCurrentlyActive = function () {
-    var val = this.get('value'), key = this.keyFromItem(val)+'', valnvis = this.htmlHelperMap.get(key);
+    var val = this.get('value'), key = this.keyFromItem(val)+'', valnvis = this.itemHelperMap.get(key);
     if (valnvis) {
       valnvis.visual.removeClass('active');
     }
@@ -576,6 +687,9 @@ function createHtmlVisualizedStringList (lib, applib) {
     return item;
   };
   HtmlVisualizedStringListElement.prototype.textFromVisualizationItem = function (item) {
+    return item;
+  };
+  HtmlVisualizedStringListElement.prototype.valueFromVisualizationItem = function (item) {
     return item;
   };
 
@@ -645,6 +759,10 @@ function createDataContainer (lib, applib) {
       this.resolve(this.currentIndex);
       return;
     }
+    if (!lib.isArray(this.originalData)) {
+      this.resolve(0);
+      return;
+    }
     this.currentIndex++;
     if (this.currentIndex>=this.originalData.length) {
       this.resolve(this.currentIndex);
@@ -674,7 +792,7 @@ function createDataContainer (lib, applib) {
       this.resolve(this.items.length);
       return;
     }
-    this.destroyable.addItem(items);
+    this.destroyable.addItem(this.items);
     this.destroyable.reSetData();
     this.resolve(1);
     /*
@@ -701,13 +819,14 @@ function createDataContainer (lib, applib) {
     ElementJob.prototype.destroy.call(this);
   };
   ItemsRemoverJob.prototype.jobProcMain = function () {
+    //console.log(this.destroyable.__parent.__parent.id, '=>', this.destroyable.id, 'ItemsRemoverJob', this.items);
     if (lib.isArray(this.items)) {
       this.items.forEach(this.destroyable.removeItem.bind(this.destroyable));
       this.destroyable.reSetData();
       this.resolve(this.items.length);
       return;
     }
-    this.destroyable.removeItem(items);
+    this.destroyable.removeItem(this.items);
     this.destroyable.reSetData();
     this.resolve(1);
   };
@@ -723,7 +842,7 @@ function createDataContainer (lib, applib) {
   };
   DataVisualizerJob.prototype.jobProcMain = function () {
     var i;
-    this.destroyable.emptyAll();
+    this.destroyable.purgeAllVisualization();
     if (!lib.isArray(this.data)) {
       this.resolve(0);
       return;
@@ -747,15 +866,26 @@ function createDataContainer (lib, applib) {
 
   function ItemCollectionElement (id, options) {
     WebElement.call(this, id, options);
+    this.itemHelperMap = new lib.Map();
     this.data = null;
+    this.totalcount = 0;
     this.value = null;
+    this.filter = null;
+    this.filteredcount = 0;
     this.internalChange = null;
   }
   lib.inherit(ItemCollectionElement, WebElement);
   ItemCollectionElement.prototype.__cleanUp = function () {
     this.internalChange = null;
+    this.filteredcount = null;
+    this.filter = null;
     this.value = null;
+    this.totalcount = null;
     this.data = null;
+    if (this.itemHelperMap) {
+      this.itemHelperMap.destroy();
+    }
+    this.itemHelperMap = null;
     WebElement.prototype.__cleanUp.call(this);
   };
   ItemCollectionElement.prototype.get_data = function () {
@@ -764,10 +894,18 @@ function createDataContainer (lib, applib) {
   ItemCollectionElement.prototype.set_data = function (data) {
     sortcheck.call(this, data);
     this.data = data;
+    this.set('totalcount', lib.isArray(data) ? data.length : 0);
     if (!this.internalChange) {
       this.visualizeData();
     }
     return true;
+  };
+  ItemCollectionElement.prototype.get_filter = function () {
+    return this.filter;
+  };
+  ItemCollectionElement.prototype.set_filter = function (filt) {
+    this.filter = filt;
+    return this.doTheFiltering();
   };
   ItemCollectionElement.prototype.get_value = function () {
     return this.value;
@@ -776,13 +914,37 @@ function createDataContainer (lib, applib) {
     this.value = val;
     return true;
   };
+  ItemCollectionElement.prototype.get_visible = function () {
+    var ret = [], _r = ret;
+    this.itemHelperMap.traverse(visiblechooser.bind(null, _r));
+    _r = null;
+    return ret;
+  };
+  function visiblechooser (ret, item) {
+    if (item && !item.filterblocked) {
+      ret.push(item.value);
+    }
+  }
+
+
   ItemCollectionElement.prototype.visualizeData = function () {
-    this.jobs.run('.', new DataVisualizerJob(this, this.get('data')));
+    var data = this.get('data');
+    this.jobs.run('.', new DataVisualizerJob(this, data));
   };
   ItemCollectionElement.prototype.visualizeItem = function (item, nextitem) {
-    var visitem = this.visualizationFromItem(item, nextitem);
-    if (visitem) {
-      this.addVisualizationToSelf(visitem, nextitem);
+    var key = this.keyFromItem(item)+'', duplicate, visunit, valuevisual;
+    duplicate = this.itemHelperMap.get(key);
+    if (duplicate) {
+      this.handleDuplicate(key, duplicate, item);
+      return;
+    }
+    visunit = this.visualizationFromItem(key, item);
+    if (visunit) {
+      valuevisual = {value: item, visual: visunit};
+      this.itemHelperMap.add(key, valuevisual);
+      this.annotateVisualizationUnit(valuevisual);
+      this.filterMapItem(valuevisual);
+      this.addVisualizationToSelf(visunit, nextitem);
     }
   };
 
@@ -830,8 +992,35 @@ function createDataContainer (lib, applib) {
     var data = this.get('data');
     this.internalChange = true;
     this.set('data', lib.isArray(data) ? data.slice() : null);
+    this.evaluateFilteredCount();
     this.internalChange = false;
   };
+  ItemCollectionElement.prototype.doTheFiltering = function () {
+    this.itemHelperMap.traverse(this.filterMapItem.bind(this));
+    this.evaluateFilteredCount();
+    return true;
+  };
+  ItemCollectionElement.prototype.filterMapItem = function (mapitem) {
+    if (!mapitem) {
+      return;
+    }
+    if (!mapitem.visual) {
+      return;
+    }
+    mapitem.filterblocked = !this.doesVisualPassTheFilter(mapitem.visual);
+  };
+  ItemCollectionElement.prototype.evaluateFilteredCount = function () {
+    var cntobj = {cnt: 0}, totalcount;
+    totalcount = this.get('totalcount');
+    this.itemHelperMap.traverse(filteredCountEvaluator.bind(null, cntobj));
+    this.set('filteredcount', cntobj.cnt);
+    cntobj = null;
+  };
+  function filteredCountEvaluator (cntobj, mapitem) {
+    if (!mapitem.filterblocked) {
+      cntobj.cnt++;
+    }
+  }
   //overloadables
   ItemCollectionElement.prototype.compareItems = function (a, b) {
     if (a<b) {
@@ -842,8 +1031,10 @@ function createDataContainer (lib, applib) {
     }
     return 0;
   };
-  ItemCollectionElement.prototype.emptyAll = function () {
-
+  ItemCollectionElement.prototype.purgeAllVisualization = function () {
+    this.set('filter', null);
+    this.itemHelperMap.purge();
+    return true;
   };
   ItemCollectionElement.prototype.findDataItemIndexByItem = function (item) {
     var data = this.get('data'), i;
@@ -860,22 +1051,25 @@ function createDataContainer (lib, applib) {
   ItemCollectionElement.prototype.findNewDataItemPlacingIndex = function (item) {
     var data = this.get('data'), i;
     if (!lib.isArray(data)) {
-      console.log(this.id, 'no data, so 0');
+      //console.log(this.id, 'no data, so 0');
       return 0;
     }
     for (i=0; i<data.length; i++) {
       if (this.compareItems(data[i], item)>0) {
-        console.log(this.id, data[i], item, 'found, so', i);
+        //console.log(this.id, data[i], item, 'found, so', i);
         return i;
       }
     }
-    console.log(this.id, 'NOT found, so', i);
+    //console.log(this.id, 'NOT found, so', i);
     return i;
+  };
+  ItemCollectionElement.prototype.doesVisualPassTheFilter = function (visitem) {
+    return true;
   };
   //overloadables end
 
   //abstraction
-  ItemCollectionElement.prototype.visualizationFromItem = function (item, nextitem) {
+  ItemCollectionElement.prototype.visualizationFromItem = function (key, item) {
     throw new lib.Error('NOT_IMPLEMENTED', 'visualizationFromItem has to be implemented by '+this.constructor.name);
   };
   ItemCollectionElement.prototype.addVisualizationToSelf = function (visitem, nextitem) {

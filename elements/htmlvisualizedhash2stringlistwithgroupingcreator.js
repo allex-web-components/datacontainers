@@ -12,16 +12,16 @@ function createHtmlVisualizedHash2StringListWithGrouping (lib, applib) {
   HtmlVisualizedHash2StringListWithGroupingElement.prototype.visualizationUnit = function () {
     return jQuery('<li class="listwithgrouping"><span class="itemcaption"></span><span class="itemgroup"></span></li>');
   };
-  HtmlVisualizedHash2StringListWithGroupingElement.prototype.annotateVisualizationUnit = function (valuevisual, item) {
+  HtmlVisualizedHash2StringListWithGroupingElement.prototype.annotateVisualizationUnit = function (valuevisual) {
     var visitem;
-    HtmlVisualizedHash2StringListElement.prototype.annotateVisualizationUnit.call(this, valuevisual, item);
+    HtmlVisualizedHash2StringListElement.prototype.annotateVisualizationUnit.call(this, valuevisual);
     visitem = valuevisual.visual;
     if (lib.isArray(valuevisual.value.group)) {
       valuevisual.value.group.forEach(this.handleGroupItemVisualization.bind(this, visitem));
       visitem = null;
       return;
     }
-    this.handleDuplicate(null, valuevisual, item);
+    this.handleDuplicate(null, valuevisual, valuevisual.value);
   };
   HtmlVisualizedHash2StringListWithGroupingElement.prototype.setCaptionOnVisualization = function (visunit, caption) {
     visunit.find('.itemcaption').html(caption);

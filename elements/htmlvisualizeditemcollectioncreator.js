@@ -5,7 +5,6 @@ function createHtmlVisualizedItemCollection (lib, applib) {
 
   function HtmlVisualizedItemCollectionElement (id, options) {
     ItemCollectionElement.call(this, id, options);
-    this.htmlHelperMap = new lib.Map();
     this.doubleClicked = this.createBufferableHookCollection();
     this.onItemClickeder = this.onItemClicked.bind(this);
     this.onItemDoubleClickeder = this.onItemDoubleClicked.bind(this);
@@ -21,36 +20,22 @@ function createHtmlVisualizedItemCollection (lib, applib) {
       this.doubleClicked.destroy();
     }
     this.doubleClicked = null;
-    if (this.htmlHelperMap) {
-      this.htmlHelperMap.destroy();
-    }
-    this.htmlHelperMap = null;
     ItemCollectionElement.prototype.__cleanUp.call(this);
   };
-  HtmlVisualizedItemCollectionElement.prototype.emptyAll = function () {
+  HtmlVisualizedItemCollectionElement.prototype.purgeAllVisualization = function () {
     this.$element.empty();
-    this.htmlHelperMap.purge();
-    ItemCollectionElement.prototype.emptyAll.call(this);
+    return ItemCollectionElement.prototype.purgeAllVisualization.call(this);
   };
-  HtmlVisualizedItemCollectionElement.prototype.visualizationFromItem = function (item) {
-    var key = this.keyFromItem(item)+'', valuevisual, duplicate;
+  HtmlVisualizedItemCollectionElement.prototype.visualizationFromItem = function (key, item) {
     var visunit;
-    duplicate = this.htmlHelperMap.get(key);
-    if (duplicate) {
-      this.handleDuplicate(key, duplicate, item);
-      return;
-    }
     visunit = this.visualizationUnit();
     visunit.attr('itemcollectionkey', key);
-    valuevisual = {value: item, visual: visunit};
-    this.htmlHelperMap.add(key, valuevisual);
-    this.annotateVisualizationUnit(valuevisual, item);
     return visunit;
   };
   HtmlVisualizedItemCollectionElement.prototype.addVisualizationToSelf = function (visitem, nextitem) {
     var nextkey, nextvalnvis;
     nextkey = nextitem ? this.keyFromItem(nextitem)+'' : null;
-    nextvalnvis = nextkey == null ? null : this.htmlHelperMap.get(nextkey);
+    nextvalnvis = nextkey == null ? null : this.itemHelperMap.get(nextkey);
     visitem.on('click', this.onItemClickeder);
     visitem.on('dblclick', this.onItemDoubleClickeder);
     if (!(nextvalnvis && nextvalnvis.visual)) {
@@ -62,7 +47,7 @@ function createHtmlVisualizedItemCollection (lib, applib) {
   HtmlVisualizedItemCollectionElement.prototype.performItemRemoval = function (itemindex) {
     var removeditem = ItemCollectionElement.prototype.performItemRemoval.call(this, itemindex),
       key = this.keyFromItem(removeditem)+'',
-      rmvalnvis = this.htmlHelperMap.remove(key);
+      rmvalnvis = this.itemHelperMap.remove(key);
     //console.log('removed', key);
     if (rmvalnvis) {
       rmvalnvis.visual.remove();
@@ -90,7 +75,7 @@ function createHtmlVisualizedItemCollection (lib, applib) {
     }
     key = jq.attr('itemcollectionkey');
     //console.log('key', key);
-    valnvis = this.htmlHelperMap.get(key);
+    valnvis = this.itemHelperMap.get(key);
     if (!valnvis) {
       return;
     }
@@ -121,7 +106,7 @@ function createHtmlVisualizedItemCollection (lib, applib) {
     }
     key = jq.attr('itemcollectionkey');
     //console.log('key', key);
-    valnvis = this.htmlHelperMap.get(key);
+    valnvis = this.itemHelperMap.get(key);
     if (!valnvis) {
       return;
     }
@@ -153,12 +138,24 @@ function createHtmlVisualizedItemCollection (lib, applib) {
       this.set('value', null);
     }
   };
+  HtmlVisualizedItemCollectionElement.prototype.doesVisualPassTheFilter = function (visitem) {
+    var text = this.get('filter') || '';
+    var fail = text.length > 0 && (visitem.text().toLowerCase().indexOf(text) < 0);
+    visitem[fail ? 'hide' : 'show']();
+    return !fail;
+  };
+  /*
+  HtmlVisualizedItemCollectionElement.prototype.doTheFiltering = function () {    
+    filterCollection.call(this);
+    return ItemCollectionElement.prototype.doTheFiltering.call(this);
+  };
+  */
   //overridables
   HtmlVisualizedItemCollectionElement.prototype.visualizationUnit = function () {
     return jQuery('<li>');
   };
-  HtmlVisualizedItemCollectionElement.prototype.annotateVisualizationUnit = function (valuevisual, item) {
-    var p, visunit = valuevisual.visual;
+  HtmlVisualizedItemCollectionElement.prototype.annotateVisualizationUnit = function (valuevisual) {
+    var p, visunit = valuevisual.visual, item = valuevisual.value;
     var itemopts = this.getConfigVal('item') || {}, itemoptattrs;
     itemoptattrs = itemopts.attrs;
     if (itemoptattrs) {
@@ -178,7 +175,7 @@ function createHtmlVisualizedItemCollection (lib, applib) {
     visunit.html(caption);
   };
   HtmlVisualizedItemCollectionElement.prototype.handleDuplicate = function (key, valuevisualfound, item) {
-    console.warn('Duplicate key found', key, 'on', item);
+    console.warn(this.id, 'Duplicate key found', key, 'on', item);
   };
   //overridables end
   //abstraction
@@ -188,13 +185,16 @@ function createHtmlVisualizedItemCollection (lib, applib) {
   HtmlVisualizedItemCollectionElement.prototype.textFromVisualizationItem = function (item) {
     throw new lib.Error('NOT_IMPLEMENTED', 'textFromVisualizationItem has to be implemented by '+this.constructor.name);
   };
+  HtmlVisualizedItemCollectionElement.prototype.valueFromVisualizationItem = function (item) {
+    throw new lib.Error('NOT_IMPLEMENTED', this.constructor.name+' has to implement valueFromVisualizationItem');
+  };
   HtmlVisualizedItemCollectionElement.prototype.itemFromKey = function (key) {
-    return this.htmlHelperMap.get(key);
+    return this.itemHelperMap.get(key);
   };
   //abstraction end
 
   HtmlVisualizedItemCollectionElement.prototype.deselectCurrentlyActive = function () {
-    var val = this.get('value'), key = this.keyFromItem(val)+'', valnvis = this.htmlHelperMap.get(key);
+    var val = this.get('value'), key = this.keyFromItem(val)+'', valnvis = this.itemHelperMap.get(key);
     if (valnvis) {
       valnvis.visual.removeClass('active');
     }

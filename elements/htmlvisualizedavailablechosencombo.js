@@ -37,8 +37,26 @@ function createHtmlVisualizedAvailableChosenCombo (lib, applib) {
         type: 'HtmlVisualizedItemCollection'
       }, options.widgets.available),
       lib.extend({
+        type: 'SearchInputElement'
+      }, options.widgets.availablesearch),
+      lib.extend({
+        type: 'WebElement'
+      }, options.widgets.availabletotalcount),
+      lib.extend({
+        type: 'WebElement'
+      }, options.widgets.availablefilteredcount),
+      lib.extend({
         type: 'HtmlVisualizedItemCollection'
       }, options.widgets.chosen),
+      lib.extend({
+        type: 'SearchInputElement'
+      }, options.widgets.chosensearch),
+      lib.extend({
+        type: 'WebElement'
+      }, options.widgets.chosentotalcount),
+      lib.extend({
+        type: 'WebElement'
+      }, options.widgets.chosenfilteredcount),
       lib.extend({
         type: 'ClickableElement',
         options: {
@@ -88,6 +106,10 @@ function createHtmlVisualizedAvailableChosenCombo (lib, applib) {
     var w = this.getWidget('available');
     return w ? w.set('data', data) : false;
   };
+  HtmlVisualizedAvailableChosenElement.prototype.get_visibleavailable = function () {
+    var w = this.getWidget('available');
+    return w ? w.get('visible') : null;
+  };
   HtmlVisualizedAvailableChosenElement.prototype.get_chosen = function () {
     var w = this.getWidget('chosen');
     return w ? w.get('data') : null;
@@ -98,6 +120,10 @@ function createHtmlVisualizedAvailableChosenCombo (lib, applib) {
     return w ? w.set('data', data) : false;
     */
     this.needsChosenToBeSet.fire(data);
+  };
+  HtmlVisualizedAvailableChosenElement.prototype.get_visiblechosen = function () {
+    var w = this.getWidget('chosen');
+    return w ? w.get('visible') : null;
   };
   HtmlVisualizedAvailableChosenElement.prototype.resetChosen = function () {
     this.needsChosenToBeReset.fire(true);
@@ -112,11 +138,19 @@ function createHtmlVisualizedAvailableChosenCombo (lib, applib) {
   }
 
   HtmlVisualizedAvailableChosenElement.prototype.staticEnvironmentDescriptor = function (myname) {
-    var widgets, availaccnts, availaccntsselmode, chosenaccnts, chosenaccntsselmode, chooseone, chooseall, unchooseone, unchooseall;
+    var widgets, availaccnts, availsearch, availtotalcount, availfilteredcount, availaccntsselmode,
+      chosenaccnts, chosensearch, chosentotalcount, chosenfilteredcount, chosenaccntsselmode, chooseone, chooseall,
+      unchooseone, unchooseall;
     widgets = this.getConfigVal('widgets');
     availaccnts = widgets.available.name;
+    availsearch = widgets.availablesearch.name;
+    availtotalcount = widgets.availabletotalcount.name;
+    availfilteredcount = widgets.availablefilteredcount.name;
     availaccntsselmode = widgets.available.options.selectmode;
     chosenaccnts = widgets.chosen.name;
+    chosensearch = widgets.chosensearch.name;
+    chosentotalcount = widgets.chosentotalcount.name;
+    chosenfilteredcount = widgets.chosenfilteredcount.name;
     chosenaccntsselmode = widgets.chosen.options.selectmode;
     chooseone = widgets.chooseone.name;
     chooseall = widgets.chooseall.name;
@@ -124,6 +158,22 @@ function createHtmlVisualizedAvailableChosenCombo (lib, applib) {
     unchooseall = widgets.unchooseall.name;
     return {
       logic: [
+        {
+          triggers: [
+            'element.'+myname+'.'+availaccnts+':totalcount',
+            'element.'+myname+'.'+availaccnts+':filteredcount',
+          ].join(','),
+          references: 'element.'+myname+'.'+availfilteredcount,
+          handler: filteredController
+        },
+        {
+          triggers: [
+            'element.'+myname+'.'+chosenaccnts+':totalcount',
+            'element.'+myname+'.'+chosenaccnts+':filteredcount',
+          ].join(','),
+          references: 'element.'+myname+'.'+chosenfilteredcount,
+          handler: filteredController
+        },
         {
           triggers: 'element.'+myname+'.'+availaccnts+':data',
           handler: this.changed.fire.bind(this.changed, 'available')
@@ -169,13 +219,14 @@ function createHtmlVisualizedAvailableChosenCombo (lib, applib) {
         {
           triggers: 'element.'+myname+'.'+chooseall+'!clicked',
           references: [
+            'element.'+myname,
             'element.'+myname+'.'+availaccnts,
             'element.'+myname+'.'+chosenaccnts
           ].join(','),
-          handler: function(avlacc, chsnacc) {
-            var all = avlacc.get('data');
-            avlacc.set('data', null);
-            chsnacc.addItems(all);
+          handler: function(me, avlacc, chsnacc) {
+            var allvisible = me.get('visibleavailable');
+            avlacc.removeItems(allvisible);
+            chsnacc.addItems(allvisible);
           }
         },
         {
@@ -191,18 +242,31 @@ function createHtmlVisualizedAvailableChosenCombo (lib, applib) {
           }
         },
         {
+          triggers: 'element.'+myname+'!needsChosenToBeReset',
+          references: [
+            'element.'+myname+'.'+availsearch,
+            'element.'+myname+'.'+chosensearch
+          ].join(','),
+          handler: function (avsrch, chsrch) {
+            avsrch.set('value', '');
+            chsrch.set('value', '');
+          }
+        },
+        {
           triggers: [
             'element.'+myname+'.'+unchooseall+'!clicked',
             'element.'+myname+'!needsChosenToBeReset',
           ],
           references: [
+            'element.'+myname,
             'element.'+myname+'.'+availaccnts,
             'element.'+myname+'.'+chosenaccnts
           ].join(','),
-          handler: function(avlacc, chsnacc) {
-            var all = chsnacc.get('data');
-            chsnacc.set('data', null);
-            avlacc.addItems(lib.isArray(all) ? all : []);
+          handler: function(me, avlacc, chsnacc) {
+            var allvisible = me.get('visiblechosen');
+            allvisible = lib.isArray(allvisible) ? allvisible : [];
+            chsnacc.removeItems(allvisible);
+            avlacc.addItems(allvisible);
           }
         },
         {
@@ -218,6 +282,48 @@ function createHtmlVisualizedAvailableChosenCombo (lib, applib) {
         }
       ],
       links: [
+        {
+          source: 'element.'+myname+'.'+availaccnts+':totalcount',
+          target: 'element.'+myname+'.'+availtotalcount+':actual',
+          filter: function (num) {return num>0;}
+        },
+        {
+          source: 'element.'+myname+'.'+availaccnts+':totalcount',
+          target: 'element.'+myname+'.'+availtotalcount+':text',
+          filter: function (num) {return 'Total: '+num;}
+        },
+        {
+          source: 'element.'+myname+'.'+chosenaccnts+':totalcount',
+          target: 'element.'+myname+'.'+chosentotalcount+':actual',
+          filter: function (num) {return num>0;}
+        },
+        {
+          source: 'element.'+myname+'.'+chosenaccnts+':totalcount',
+          target: 'element.'+myname+'.'+chosentotalcount+':text',
+          filter: function (num) {return 'Total: '+num;}
+        },
+        {
+          source: 'element.'+myname+'.'+availsearch+':value',
+          target: 'element.'+myname+'.'+availaccnts+':filter'
+        },
+        {
+          source: 'element.'+myname+'.'+chosensearch+':value',
+          target: 'element.'+myname+'.'+chosenaccnts+':filter'
+        },
+        {
+          source: 'element.'+myname+'.'+availaccnts+':data',
+          target: 'element.'+myname+'.'+availsearch+':actual',
+          filter: function (data) {
+            return lib.isArray(data) && data.length > 10;
+          }
+        },
+        {
+          source: 'element.'+myname+'.'+chosenaccnts+':data',
+          target: 'element.'+myname+'.'+chosensearch+':actual',
+          filter: function (data) {
+            return lib.isArray(data) && data.length > 10;
+          }
+        },
         {
           source: 'element.'+myname+'.'+availaccnts+':value',
           target: 'element.'+myname+'.'+chooseone+':enabled',
@@ -239,6 +345,14 @@ function createHtmlVisualizedAvailableChosenCombo (lib, applib) {
     };
   };
 
+  function filteredController (el, totcnt, fltcnt) {
+    if (totcnt == fltcnt) {
+      el.set('actual', false);
+      return;
+    }
+    el.set('text', 'Filtered: '+fltcnt);
+    el.set('actual', true);
+  }
   function multiSelectValue2Enabled (value) {
     return value && value.length>0;
   }

@@ -13,6 +13,9 @@ function createHtmlVisualizedStringList (lib, applib) {
   HtmlVisualizedStringListElement.prototype.textFromVisualizationItem = function (item) {
     return item;
   };
+  HtmlVisualizedStringListElement.prototype.valueFromVisualizationItem = function (item) {
+    return item;
+  };
 
   applib.registerElementType('HtmlVisualizedStringList', HtmlVisualizedStringListElement);
 }

@@ -23,13 +23,10 @@ function createHtmlVisualizedHash2StringList (lib, applib) {
     var titlepath = this.getConfigVal('titlepath');
     return (lib.isString(titlepath) && titlepath.length>0) ? item[titlepath] : item;
   };
-  function comparer (a, b, numeric) {
-    if (numeric) {
-      return a-b;
-    }
-    
-  }
-
+  HtmlVisualizedHash2StringListElement.prototype.valueFromVisualizationItem = function (item) {
+    var valuepath = this.getConfigVal('valuepath');
+    return (lib.isString(valuepath) && valuepath.length>0) ? item[valuepath] : item;
+  };
 
   applib.registerElementType('HtmlVisualizedHash2StringList', HtmlVisualizedHash2StringListElement);
 }
