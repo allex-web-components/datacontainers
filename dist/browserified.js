@@ -857,6 +857,9 @@ function createDataContainer (lib, applib) {
   };
 
   function sortcheck (thingy) {
+    if (this.getConfigVal('presorteditems')) {
+      return;
+    }
     if (lib.isArray(thingy)) {
       thingy.sort(this.compareItems.bind(this));
     }
