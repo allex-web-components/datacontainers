@@ -277,7 +277,7 @@ function createHtmlVisualizedAvailableChosenCombo (lib, applib) {
           ].join(','),
           handler: function(avlacc, chsnacc, newchosen) {
             avlacc.removeItems(newchosen);
-            chsnacc.addItems(newchosen);
+            chsnacc.set('data', newchosen);
           }
         }
       ],
