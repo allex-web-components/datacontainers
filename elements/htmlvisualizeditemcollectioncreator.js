@@ -22,6 +22,10 @@ function createHtmlVisualizedItemCollection (lib, applib) {
     this.doubleClicked = null;
     ItemCollectionElement.prototype.__cleanUp.call(this);
   };
+  HtmlVisualizedItemCollectionElement.prototype.get_values = function () {
+    var value = this.get('value');
+    return lib.isArray(value) ? value.map(this.valueFromVisualizationItem.bind(this)) : null;
+  };
   HtmlVisualizedItemCollectionElement.prototype.purgeAllVisualization = function () {
     this.$element.empty();
     return ItemCollectionElement.prototype.purgeAllVisualization.call(this);

@@ -387,8 +387,27 @@ function createHtmlVisualizedHash2StringList (lib, applib) {
     HtmlVisualizedItemCollectionElement.prototype.compareItems.call(this, a, b)
   };
   HtmlVisualizedHash2StringListElement.prototype.textFromVisualizationItem = function (item) {
+    /*
     var titlepath = this.getConfigVal('titlepath');
     return (lib.isString(titlepath) && titlepath.length>0) ? item[titlepath] : item;
+    */
+    var titlefields, titlepath, titlejoiner, ret;
+    if (!item) {
+      return '';
+    }
+    titlefields = this.getConfigVal('titlefields');
+    if (lib.isArray(titlefields)) {
+      titlejoiner = this.getConfigVal('titlejoiner') || ',';
+      ret = titlefields.reduce(titleReducer.bind(null, titlejoiner, item), '');
+      titlejoiner = null;
+      item = null;
+      return ret;
+    }
+    titlepath = this.getConfigVal('titlepath');
+    if (!titlepath) {
+      return item;
+    }
+    return item[titlepath];
   };
   HtmlVisualizedHash2StringListElement.prototype.valueFromVisualizationItem = function (item) {
     var valuepath = this.getConfigVal('valuepath');
@@ -396,6 +415,46 @@ function createHtmlVisualizedHash2StringList (lib, applib) {
   };
 
   applib.registerElementType('HtmlVisualizedHash2StringList', HtmlVisualizedHash2StringListElement);
+
+    //title reducer via titlefields
+    function titleReducer (joinerstring, optiondata, result, titleelement) {
+      if (!lib.isString(titleelement)) {
+        return result;
+      }
+      return lib.joinStringsWith(result, valueFromColonSplits(optiondata, titleelement.split(':')), joinerstring);
+    };
+  
+    function valueFromColonSplits (optiondata, splits) {
+      var val = optiondata[splits[0]];
+      if (splits.length<2) {
+        return val+'';
+      }
+      val = modify(val, splits[1], 'pre');
+      val = modify(val, splits[1], 'post');
+      return val+'';
+    }
+    function modify(value, thingy, direction) {
+      var intvalue = parseInt(thingy);
+      if (!lib.isNumber(intvalue)) {
+        return '';
+      }
+      return modifiers[direction+'pendToLength'](value+'', lib.isNumber(value) ? '0' : ' ', intvalue);
+    }
+    var modifiers = {
+      prependToLength: function (str, thingy, len) {
+        while(str.length < len) {
+          str = thingy+str;
+        }
+        return str;
+      },
+      postpendToLength: function (str, thingy, len) {
+        while(str.length < len) {
+          str = str+thingy;
+        }
+        return str;
+      }
+    };
+    //endof title reducer via titlefields
 }
 module.exports = createHtmlVisualizedHash2StringList;
 },{}],3:[function(require,module,exports){
@@ -490,6 +549,10 @@ function createHtmlVisualizedItemCollection (lib, applib) {
     }
     this.doubleClicked = null;
     ItemCollectionElement.prototype.__cleanUp.call(this);
+  };
+  HtmlVisualizedItemCollectionElement.prototype.get_values = function () {
+    var value = this.get('value');
+    return lib.isArray(value) ? value.map(this.valueFromVisualizationItem.bind(this)) : null;
   };
   HtmlVisualizedItemCollectionElement.prototype.purgeAllVisualization = function () {
     this.$element.empty();
