@@ -184,6 +184,7 @@ function createDataContainer (lib, applib) {
   ItemCollectionElement.prototype.set_data = function (data) {
     sortcheck.call(this, data);
     this.data = data;
+    this.set('value', []);
     this.set('totalcount', lib.isArray(data) ? data.length : 0);
     if (!this.internalChange) {
       this.visualizeData();
