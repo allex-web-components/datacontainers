@@ -83,7 +83,6 @@ function createHtmlVisualizedAvailableChosenCombo (lib, applib) {
       }, options.widgets.unchooseall)
     ];
     WebElement.call(this, id, options);
-    this.needsChosenToBeSet = this.createBufferableHookCollection();
     this.needsChosenToBeReset = this.createBufferableHookCollection();
   }
   lib.inherit(HtmlVisualizedAvailableChosenElement, WebElement);
@@ -92,10 +91,6 @@ function createHtmlVisualizedAvailableChosenCombo (lib, applib) {
        this.needsChosenToBeReset.destroy();
     }
     this.needsChosenToBeReset = null;
-    if(this.needsChosenToBeSet) {
-       this.needsChosenToBeSet.destroy();
-    }
-    this.needsChosenToBeSet = null;
     WebElement.prototype.__cleanUp.call(this);
   };
   HtmlVisualizedAvailableChosenElement.prototype.get_available = function () {
@@ -104,8 +99,14 @@ function createHtmlVisualizedAvailableChosenCombo (lib, applib) {
   };
   HtmlVisualizedAvailableChosenElement.prototype.set_available = function (data) {
     var w = this.getWidget('available');
-    return w ? w.set('data', data) : false;
+    if (!w) {
+      return false;
+    }
+    return w.queueFunctionInvocation(doSetAvailable, [data]);
   };
+  function doSetAvailable (data) {
+    return this.set('data', data);
+  }
   HtmlVisualizedAvailableChosenElement.prototype.get_visibleavailable = function () {
     var w = this.getWidget('available');
     return w ? w.get('visible') : null;
@@ -115,12 +116,18 @@ function createHtmlVisualizedAvailableChosenCombo (lib, applib) {
     return w ? w.get('data') : null;
   };
   HtmlVisualizedAvailableChosenElement.prototype.set_chosen = function (data) {
-    /* niet goed
-    var w = this.getWidget('chosen');
-    return w ? w.set('data', data) : false;
-    */
-    this.needsChosenToBeSet.fire(data);
+    var avlacc, chsnacc;
+    avlacc = this.getWidget('available');
+    chsnacc = this.getWidget('chosen');
+    if (!(avlacc && chsnacc)) {
+      return false;
+    }
+    avlacc.queueFunctionInvocation(doSetChosen, [chsnacc, data]);
   };
+  function doSetChosen (chsnacc, newchosen) {
+    this.removeItems(newchosen);
+    chsnacc.set('data', newchosen);
+  }
   HtmlVisualizedAvailableChosenElement.prototype.get_visiblechosen = function () {
     var w = this.getWidget('chosen');
     return w ? w.get('visible') : null;
@@ -267,17 +274,6 @@ function createHtmlVisualizedAvailableChosenCombo (lib, applib) {
             allvisible = lib.isArray(allvisible) ? allvisible : [];
             chsnacc.removeItems(allvisible);
             avlacc.addItems(allvisible);
-          }
-        },
-        {
-          triggers: 'element.'+myname+'!needsChosenToBeSet',
-          references: [
-            'element.'+myname+'.'+availaccnts,
-            'element.'+myname+'.'+chosenaccnts
-          ].join(','),
-          handler: function(avlacc, chsnacc, newchosen) {
-            avlacc.removeItems(newchosen);
-            chsnacc.set('data', newchosen);
           }
         }
       ],

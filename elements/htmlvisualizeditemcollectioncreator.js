@@ -26,6 +26,39 @@ function createHtmlVisualizedItemCollection (lib, applib) {
     var value = this.get('value');
     return lib.isArray(value) ? value.map(this.valueFromVisualizationItem.bind(this)) : null;
   };
+  //static
+  function valueser (res, item) {
+    return res;
+  }
+  //endof static
+  HtmlVisualizedItemCollectionElement.prototype.set_values = function (vals) {
+    return this.queueFunctionInvocation(valuesSetter, [vals]);
+  };
+  function valuesSetter (vals) {
+    var setobj;
+    if (!lib.isNonEmptyArray(vals)) {
+      return false;
+    }
+    setobj = {sel: [], desel: [], vals: vals};
+    this.itemHelperMap.reduce(valuesSelector, setobj);
+    setobj.sel.forEach(selectValNVis.bind(this));
+    setobj.desel.forEach(deselectValNVis.bind(this));
+    return true;
+  };
+  function valuesSelector (setobj, item, itemkey) {
+    var maybenum = parseFloat(itemkey);
+    var val = lib.isNumber(maybenum) ? maybenum : itemkey;
+    setobj[(setobj.vals.indexOf(val)<0) ? 'desel' : 'sel'].push(item);
+    return setobj;
+  }
+  function selectValNVis (valnvis) {
+    valnvis.visual.addClass('active');
+    this.addItemToValue(valnvis.value);
+  }
+  function deselectValNVis (valnvis) {
+    valnvis.visual.removeClass('active');
+    this.removeItemFromValue(valnvis.value);
+  }
   HtmlVisualizedItemCollectionElement.prototype.purgeAllVisualization = function () {
     this.$element.empty();
     return ItemCollectionElement.prototype.purgeAllVisualization.call(this);
@@ -123,10 +156,29 @@ function createHtmlVisualizedItemCollection (lib, applib) {
   HtmlVisualizedItemCollectionElement.prototype.addItemToValue = function (item) {
     var currval = this.get('value'), valindex;
     if (lib.isArray(currval)) {
+      if (this.getConfigVal('sortedvalues')){
+        this.set('value', sortedValues(this.get('data'), currval.slice(), item));
+        return;
+      }
       this.set('value', currval.concat([item]));
       return;
     }
     this.set('value', item);
+  };
+  function sortedValues(data, currval, item) {
+    var itind = data.indexOf(item), i, valind, insertindex=-1;
+    for (i=0; i<currval.length && insertindex<0; i++) {
+      valind = data.indexOf(currval[i]);
+      if (valind>itind) {
+        insertindex = i;
+      }
+    }
+    if (insertindex<0) {
+      insertindex = i;
+    }
+    currval.splice(insertindex, 0, item);
+    //console.log('new value', currval);
+    return currval;
   }
   HtmlVisualizedItemCollectionElement.prototype.removeItemFromValue = function (item) {
     var currval = this.get('value').slice(), valindex;
