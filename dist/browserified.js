@@ -282,22 +282,22 @@ function createHtmlVisualizedAvailableChosenCombo (lib, applib) {
         {
           source: 'element.'+myname+'.'+availaccnts+':totalcount',
           target: 'element.'+myname+'.'+availtotalcount+':actual',
-          filter: function (num) {return num>0;}
+          filter: function (num) {return num>=0;}
         },
         {
           source: 'element.'+myname+'.'+availaccnts+':totalcount',
-          target: 'element.'+myname+'.'+availtotalcount+':text',
-          filter: function (num) {return 'Total: '+num;}
+          target: 'element.'+myname+'.'+availtotalcount+':html',
+          filter: function (num) {return num > 0 ? 'Total: '+num : '<i>Empty List</i>';}
         },
         {
           source: 'element.'+myname+'.'+chosenaccnts+':totalcount',
           target: 'element.'+myname+'.'+chosentotalcount+':actual',
-          filter: function (num) {return num>0;}
+          filter: function (num) {return num>=0;}
         },
         {
           source: 'element.'+myname+'.'+chosenaccnts+':totalcount',
-          target: 'element.'+myname+'.'+chosentotalcount+':text',
-          filter: function (num) {return 'Total: '+num;}
+          target: 'element.'+myname+'.'+chosentotalcount+':html',
+          filter: function (num) {return num > 0 ? 'Total: '+num : '<i>Empty List</i>';}
         },
         {
           source: 'element.'+myname+'.'+availsearch+':value',

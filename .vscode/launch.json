@@ -5,13 +5,13 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "type": "pwa-node",
+      "type": "node",
       "request": "launch",
-      "name": "Component Build",
+      "name": "DataContainers Build",
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "/home/andra/bin/allex-component-build",
+      "program": "${env:HOME}/bin/allex-component-build",
       "cwd": "${workspaceFolder}"
     }
   ]
